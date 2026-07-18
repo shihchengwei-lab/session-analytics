@@ -29,6 +29,14 @@ RULE_RE = re.compile(
 )
 
 
+def read_exact_lines(path):
+    """Lines with their original endings intact - newline="" disables Python's
+    universal-newline translation, so a whole-file CRLF/LF rewrite outside the
+    markers cannot slip through the untouched-content comparison."""
+    with open(path, encoding="utf-8", newline="") as fh:
+        return fh.read().splitlines(keepends=True)
+
+
 def split_block(lines, label):
     """Return (pre, block, post); block is None when no markers exist."""
     starts = [i for i, l in enumerate(lines) if l.lstrip().startswith(START)]
@@ -62,7 +70,7 @@ def main():
         sys.exit("usage: python validate_rules_block.py <config_file> [<proposed_file>]")
 
     new_path = Path(sys.argv[-1])
-    new_lines = new_path.read_text(encoding="utf-8").splitlines()
+    new_lines = read_exact_lines(new_path)
     pre_n, block_n, post_n = split_block(new_lines, new_path.name)
     if block_n is None:
         sys.exit(f"{new_path.name}: no managed rules block found.")
@@ -70,10 +78,14 @@ def main():
 
     if len(sys.argv) == 3:
         old_path = Path(sys.argv[1])
-        old_lines = old_path.read_text(encoding="utf-8").splitlines()
+        old_lines = read_exact_lines(old_path)
         pre_o, block_o, post_o = split_block(old_lines, old_path.name)
         if block_o is None:
-            # First run: the block may be inserted, but nothing else may change.
+            # First run: the block may be inserted, but nothing else may change,
+            # and the spec allows at most 3 initial rules.
+            if n > 3:
+                sys.exit(f"{new_path.name}: first-run block proposes {n} rules; "
+                         "the spec allows at most 3 - rules must earn their place.")
             if old_lines != pre_n + post_n:
                 sys.exit(f"{old_path.name} -> {new_path.name}: first-run insertion "
                          "must leave every existing line untouched.")

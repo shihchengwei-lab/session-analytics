@@ -2,7 +2,7 @@
 
 **English** · [繁體中文](README.zh-TW.md)
 
-An [Agent Skill](https://agentskills.io) for continuously improving how you work with AI coding agents — a **self-optimizing harness skill**: each agent analyzes **its own tool's** local session logs over the last 7 days, reinforces the paths you actually use, prunes the ones you don't, and re-validates its own past advice across model changes — so your setup keeps improving without accumulating. No data leaves your machine.
+An [Agent Skill](https://agentskills.io) for continuously improving how you work with AI coding agents — a **self-optimizing harness skill**: each agent analyzes **its own tool's** local session logs over the last 7 days, reinforces the paths you actually use, prunes the ones you don't, and re-validates its own past advice across model changes — so your setup keeps improving without accumulating. Reads local data only and uploads nothing; analysis samples flow through your agent's model context — the same trust boundary as every other session with that agent.
 
 Why 7 days: month-long panoramas mix in old, already-corrected behavior; a rolling week keeps the signal about who you are *now*. Run it any time — a natural rhythm is spending leftover quota before your weekly usage reset.
 

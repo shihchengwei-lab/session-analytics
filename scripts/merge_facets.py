@@ -20,16 +20,23 @@ import os
 import sys
 from pathlib import Path
 
-CONFIG_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
+# `or` (not a get-default) so an empty env var also falls back - matching
+# extract_claude_raw.py; a get-default would resolve "" to the current dir.
+CONFIG_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 BASE = CONFIG_DIR / "usage-data"
 
 
 def load_dir(d):
     for f in sorted(d.glob("*.json")):
         try:
-            yield f, json.loads(f.read_text(encoding="utf-8"))
+            obj = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as e:
             print(f"skip {f.name}: {e}", file=sys.stderr)
+            continue
+        if not isinstance(obj, dict):
+            print(f"skip {f.name}: not a JSON object", file=sys.stderr)
+            continue
+        yield f, obj
 
 
 def build_rows():

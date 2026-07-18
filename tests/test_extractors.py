@@ -50,13 +50,15 @@ class TestClaudeRaw(unittest.TestCase):
     def test_full_session_row(self):
         write_jsonl(self.root / "projects" / "proj" / "sess1.jsonl", [
             "this line is not json",
+            # Command line first and WITHOUT cwd/version/gitBranch: a None
+            # from it must not poison the metadata the human line carries.
+            {"type": "user",
+             "message": {"content": "<command-message>loop</command-message>\n<command-name>/loop</command-name>"},
+             "timestamp": "2026-07-17T01:00:00.000Z"},
             {"type": "user", "origin": {"kind": "human"},
              "message": {"role": "user", "content": "幫我修 bug"},
              "timestamp": "2026-07-17T01:00:00.000Z",
              "cwd": "C:\\proj", "version": "2.1.0", "gitBranch": "main"},
-            {"type": "user",
-             "message": {"content": "<command-message>loop</command-message>\n<command-name>/loop</command-name>"},
-             "timestamp": "2026-07-17T01:01:00.000Z"},
             {"type": "user", "message": {"content": [{"type": "tool_result", "content": "ok"}]},
              "timestamp": "2026-07-17T01:02:00.000Z"},
             {"type": "assistant", "timestamp": "2026-07-17T01:10:00.000Z",
@@ -95,6 +97,9 @@ class TestClaudeRaw(unittest.TestCase):
         # Subagent cost visible separately: inline sidechain (old format, 999)
         # + subagents/ directory files (new format, 999).
         self.assertEqual(r["sidechain_output_tokens"], 1998)
+        self.assertEqual(r["assistant_turns"], 2)  # m1+m3; sidechain m2/m9 excluded
+        self.assertEqual(r["cwd"], "C:\\proj")  # survives a metadata-less line seen first
+        self.assertEqual(r["version"], "2.1.0")
         self.assertEqual(r["models"], ["claude-opus-4-8"])
         self.assertNotIn("Bash", r["tool_counts"])  # sidechain excluded
         self.assertEqual(r["tool_counts"]["__unparsed_lines__"], 1)
@@ -113,6 +118,7 @@ class TestClaudeRaw(unittest.TestCase):
         res = self.run_extractor()
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("format", res.stderr.lower())
+        self.assertFalse(self.out.exists())  # no empty dataset left behind
 
 
 class TestCodex(unittest.TestCase):
@@ -126,11 +132,19 @@ class TestCodex(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_meta_inputs_and_tokens(self):
+        # Mirrors the observed rollout shape: wrappers (response_item/event_msg)
+        # around typed payloads; input_text sits inside role-tagged messages.
         write_jsonl(self.root / ".codex" / "sessions" / "2026" / "07" / "17" / "rollout-1-a.jsonl", [
             {"type": "session_meta",
              "payload": {"session_id": "abc", "timestamp": "2026-07-17T01:00:00Z",
                          "cwd": "/home/u/proj", "originator": "codex_cli", "cli_version": "1.0"}},
-            {"type": "event_msg", "payload": {"type": "input_text", "text": "fix the tests"}},
+            # Framework-injected text: role=developer, NOT tag-shaped - must
+            # be excluded from user samples by role, not by the "<" heuristic.
+            {"type": "response_item", "payload": {"type": "message", "role": "developer",
+             "content": [{"type": "input_text", "text": "## Memory preamble injected by the framework"}]}},
+            {"type": "response_item", "payload": {"type": "message", "role": "user",
+             "content": [{"type": "input_text", "text": "fix the tests"}]}},
+            {"type": "response_item", "payload": {"type": "function_call", "name": "shell"}},
             {"type": "event_msg", "payload": {"type": "token_count",
                                               "info": {"total_tokens": 1234}}},
         ])
@@ -140,9 +154,14 @@ class TestCodex(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         r = rows[0]
         self.assertEqual(r["session_id"], "abc")
-        self.assertEqual(r["user_inputs_sample"], ["fix the tests"])
+        self.assertEqual(r["user_inputs_sample"], ["fix the tests"])  # user role only
         self.assertEqual(r["user_input_total"], 1)
+        self.assertEqual(r["nonuser_input_total"], 1)  # injected text counted separately
         self.assertEqual(r["last_token_count"], {"total_tokens": 1234})
+        # Nested payload types must be counted - top-level wrappers alone
+        # ("response_item": 3) tell you nothing about tool usage.
+        for key in ("message:user", "message:developer", "function_call", "token_count"):
+            self.assertIn(key, r["event_counts"], r["event_counts"])
 
     def test_no_session_meta_anywhere_warns(self):
         # Every file lacking session_meta = likely format change; the rows
@@ -153,6 +172,8 @@ class TestCodex(unittest.TestCase):
         res = run_script("extract_codex.py", [str(self.out), "7"], self.home_env)
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertIn("session_meta", res.stderr)
+        rows = [json.loads(l) for l in self.out.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(len(rows), 1)  # rows still emitted; event counts usable
 
 
 class TestMergeFacets(unittest.TestCase):
@@ -172,7 +193,9 @@ class TestMergeFacets(unittest.TestCase):
         base = self.root / "usage-data"
         (base / "session-meta").mkdir(parents=True)
         (base / "facets").mkdir(parents=True)
-        (base / "session-meta" / "s1.json").write_text(
+        # Filename stem deliberately differs from the embedded session_id:
+        # the join must go by field, not by filename.
+        (base / "session-meta" / "x1.json").write_text(
             json.dumps({"session_id": "s1", "start_time": "2026-07-15T00:00:00Z"}), encoding="utf-8")
         (base / "session-meta" / "s2.json").write_text(
             json.dumps({"session_id": "s2", "start_time": "2026-07-16T00:00:00Z"}), encoding="utf-8")
@@ -255,6 +278,26 @@ class TestValidateRulesBlock(unittest.TestCase):
         res = self.validate(p)
         self.assertEqual(res.returncode, 0)
         self.assertIn("warning", res.stderr)
+
+    def test_line_ending_rewrite_outside_markers_fails(self):
+        # Converting the whole file's line endings rewrites every line;
+        # "outside the markers untouched" must be judged on exact bytes.
+        content = ["# config", *self.BLOCK, "tail"]
+        old = self.root / "old.md"
+        old.write_bytes(("\n".join(content) + "\n").encode("utf-8"))
+        new = self.root / "new.md"
+        new.write_bytes(("\r\n".join(content) + "\r\n").encode("utf-8"))
+        res = self.validate(old, new)
+        self.assertNotEqual(res.returncode, 0)
+
+    def test_first_run_over_three_rules_fails(self):
+        rules = [f"- R{i} [since 2026-07-18 | confirmed 2026-07-18] Rule {i}. (evidence: x)"
+                 for i in range(4)]
+        old = self.write("old.md", ["# config", "tail"])
+        new = self.write("new.md", ["# config", self.BLOCK[0], *rules, self.BLOCK[2], "tail"])
+        res = self.validate(old, new)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("first", res.stderr.lower())
 
 
 if __name__ == "__main__":

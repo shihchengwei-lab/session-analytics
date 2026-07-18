@@ -57,7 +57,7 @@ Run the extractor(s) named in your reference into your temp directory. Re-run on
 - `skill_counts` (model-invoked skills), `command_counts` (user-typed slash commands), `models` (which model served each session), `sidechain_output_tokens` (subagent spend — `output_tokens` alone is main-conversation only and undercounts agent-heavy sessions) → **Claude raw only**
 - if a question needs a field your source lacks, say so instead of improvising.
 
-**Checks before analyzing**: report the extractor's stderr coverage counts; check freshness (newest start time vs today — stale /insights artifacts → say so and suggest re-running `/insights`).
+**Checks before analyzing**: report the extractor's stderr coverage counts; check freshness (newest start time vs today — stale /insights artifacts → say so and suggest re-running `/insights`). Windows select whole sessions by last activity — a resumed session carries pre-window activity into its counts; when one long-lived session dominates volume, say so.
 
 ## Stage 3 — Analyze
 
@@ -123,4 +123,4 @@ Rules for every report:
 
 ## Cost & privacy
 
-Prefer precomputed artifacts; where only raw logs exist, extract metadata and small samples, never full transcripts. Do not deep-read a single session's full log without the user explicitly opting in after being told it costs real tokens. Dataset files contain the user's prompts and project paths — treat outputs as private; don't paste bulk rows into anything that leaves the machine without the user asking.
+Prefer precomputed artifacts; where only raw logs exist, extract metadata and small samples, never full transcripts. Do not deep-read a single session's full log without the user explicitly opting in after being told it costs real tokens. Dataset files contain the user's prompts and project paths — treat outputs as private; don't paste bulk rows into anything that leaves the machine without the user asking. Analysis samples do enter this agent's model context — the same trust boundary as the rest of the session; nothing else leaves the machine.

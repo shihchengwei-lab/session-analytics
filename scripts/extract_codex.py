@@ -22,25 +22,35 @@ MAX_INPUTS = 5
 TRUNC = 200
 
 
-def walk(node, found):
-    """Collect input_text strings and token_count payloads at any nesting depth."""
+def walk(node, found, role=None):
+    """Collect input_text strings and token_count payloads at any nesting depth.
+
+    `role` is the role of the nearest enclosing message node: only role=user
+    text is a human input - injected developer/system messages also carry
+    input_text. Hosts with no role at all (older formats) count as user so
+    old logs keep working; the tag-shape filter below stays as a second net.
+    """
     if isinstance(node, dict):
-        if node.get("type") == "input_text" and isinstance(node.get("text"), str):
-            found["inputs"].append(node["text"])
-        if node.get("type") == "token_count":
+        if node.get("type") == "message" and node.get("role"):
+            role = node["role"]
+        t = node.get("type")
+        if t == "input_text" and isinstance(node.get("text"), str):
+            key = "inputs" if role in (None, "user") else "other_inputs"
+            found[key].append(node["text"])
+        if t == "token_count":
             # Observed shape: {"type":"event_msg","payload":{"type":"token_count","info":{...}}}
             found["token_count"] = node.get("info") or {}
         for v in node.values():
-            walk(v, found)
+            walk(v, found, role)
     elif isinstance(node, list):
         for v in node:
-            walk(v, found)
+            walk(v, found, role)
 
 
 def extract(path):
     row = {"log_file": str(path)}
     counts = Counter()
-    found = {"inputs": [], "token_count": None}
+    found = {"inputs": [], "other_inputs": [], "token_count": None}
     with open(path, encoding="utf-8", errors="replace") as fh:
         for line in fh:
             try:
@@ -48,8 +58,20 @@ def extract(path):
             except json.JSONDecodeError:
                 counts["unparsed_lines"] += 1
                 continue
+            if not isinstance(obj, dict):
+                counts["unparsed_lines"] += 1  # valid JSON but not a record
+                continue
             t = obj.get("type", "?")
             counts[t] += 1
+            # Top-level types are mostly wrappers (response_item, event_msg);
+            # the informative type sits one level down in the payload.
+            p = obj.get("payload")
+            if isinstance(p, dict) and p.get("type"):
+                pt = p["type"]
+                if pt == "message" and p.get("role"):
+                    counts[f"message:{p['role']}"] += 1
+                else:
+                    counts[pt] += 1
             if t == "session_meta":
                 p = obj.get("payload", {})
                 row.update({k: p.get(k) for k in ("session_id", "timestamp", "cwd", "originator", "cli_version")})
@@ -60,6 +82,7 @@ def extract(path):
     human = [s for s in found["inputs"] if not s.lstrip().startswith("<")]
     row["user_inputs_sample"] = [s[:TRUNC] for s in (human or found["inputs"])[:MAX_INPUTS]]
     row["user_input_total"] = len(found["inputs"])
+    row["nonuser_input_total"] = len(found["other_inputs"])
     row["last_token_count"] = found["token_count"]
     return row
 

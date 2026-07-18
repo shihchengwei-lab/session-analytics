@@ -49,6 +49,9 @@ def extract(path):
             except json.JSONDecodeError:
                 tool_counts["__unparsed_lines__"] += 1
                 continue
+            if not isinstance(obj, dict):
+                tool_counts["__unparsed_lines__"] += 1  # valid JSON but not a record
+                continue
             if obj.get("isSidechain"):
                 # Subagent traffic stays out of conversation counts, but its
                 # tokens are real spend - track them in their own field so
@@ -76,7 +79,10 @@ def extract(path):
                         inputs.append(content)
                     if cmd or (obj.get("origin") or {}).get("kind") == "human":
                         for k in ("cwd", "version", "gitBranch"):
-                            row.setdefault(k, obj.get(k))
+                            # setdefault with None would poison the key and
+                            # block a later record that does carry the value.
+                            if obj.get(k) is not None:
+                                row.setdefault(k, obj[k])
             elif t == "assistant":
                 msg = obj.get("message") or {}
                 if msg.get("model"):
@@ -107,6 +113,10 @@ def extract(path):
                     try:
                         obj = json.loads(line)
                     except json.JSONDecodeError:
+                        tool_counts["__unparsed_lines__"] += 1
+                        continue
+                    if not isinstance(obj, dict):
+                        tool_counts["__unparsed_lines__"] += 1
                         continue
                     if obj.get("type") == "assistant":
                         m = obj.get("message") or {}
