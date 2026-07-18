@@ -7,80 +7,107 @@ description: Weekly self-improvement loop for AI coding agents, plus ad-hoc usag
 
 **Positioning: a self-optimizing harness skill.** Read the last 7 days of real usage, then work both directions: paths the user actually uses get reinforced (friction removed, access smoothed), paths they don't get pruned (flagged for retirement) — and the skill's own past advice is re-validated the same way, so the setup keeps improving across model changes instead of accumulating stale rules.
 
-Two jobs, one skill:
+## Pipeline
 
-1. **Query mode** — answer the user's analytical questions about their recent sessions with this tool.
-2. **Improvement mode (weekly review)** — analyze the last 7 days and propose evidence-tied changes on three fronts: a small managed rules block in this tool's config, mechanical harness fixes where the tool supports them, and skill/config hygiene — so the collaboration actually changes week over week instead of repeating the same frictions.
+Every invocation walks the same stages in order. Query mode stops after stage 4; weekly review runs all five.
 
-The window is a rolling **7 days** by default. Why 7: older sessions mix in behavior that has already been corrected, which pollutes the signal; a week is recent enough to act on. The user can name any other range per question.
+| Stage | Input | Action | Output |
+|---|---|---|---|
+| 1 Route | the user's request | pick mode, window, tool reference | mode + reference file |
+| 2 Build | tool's local logs | run bundled extractor(s) | dataset file(s) in temp dir |
+| 3 Analyze | dataset file(s) | small Python scripts | computed numbers |
+| 4 Report | computed numbers | fill the output templates | user-facing report |
+| 5 Apply *(weekly only)* | report + current config | propose rules / harness fixes / hygiene | approved config diffs |
 
-## Which data am I reading?
+## Stage 1 — Route
 
-Each agent analyzes **its own tool's** logs — Claude Code data stays meaningful to Claude Code sessions, Codex data to Codex. Before touching data, read the reference for the tool you are running in:
+**Mode**, by what the user said:
 
-- Claude Code → `references/claude-code.md` (precomputed /insights artifacts for quality data; raw session logs for freshness + per-skill detail)
+- a specific analytical question → **query mode** (stages 2–4)
+- "weekly review" / "週回顧" / "improve my workflow" / asks to turn analysis into lasting changes → **weekly review** (stages 2–5)
+- bare invocation, no question → **query mode with the bare-overview template** — a user who typed the skill name already told you what they want; don't ask.
+
+**Window**: rolling 7 days default. Why 7: older sessions mix in behavior that has already been corrected, which pollutes the signal; a week is recent enough to act on. The user can name any other range; state whichever window you used. Hygiene verdicts (stage 5) widen to ~28 days — one quiet week proves little.
+
+**Tool reference** — each agent analyzes its **own tool's** logs; read yours before touching data:
+
+- Claude Code → `references/claude-code.md` (/insights artifacts for quality data; raw session logs for freshness + per-skill detail)
 - OpenAI Codex → `references/codex.md` (raw session JSONL; metadata-first, bundled extractor)
-- Any other tool → `references/generic.md`
+- any other tool → `references/generic.md`
 
-Each reference defines where logs live and how to build `merged.jsonl` — a one-line-per-session dataset in your temp directory. Everything below is source-agnostic.
+## Stage 2 — Build the dataset (input contract)
 
-## Query mode
+Run the extractor(s) named in your reference into your temp directory. Re-run on every invocation — data may have been refreshed. Each dataset is one JSON line per session.
 
-1. **Build the dataset** per your tool's reference (re-run each time; data may have been refreshed).
-2. **Query** — write a small Python script against `merged.jsonl` for the user's question; print aggregates plus a handful of example rows only. Don't load the whole file into context (hundreds of KB; you need answers, not raw text). Write query code to a file and run it (inline `python -c` breaks on Windows backslash paths); set `PYTHONUTF8=1` when output may contain non-ASCII (Windows consoles default to legacy codepages).
-3. **Report** — numbers plus concrete example sessions (date + first-prompt snippet + project path tail, so the user can recognize the session).
+**Common core** — every source provides these concepts; field names differ:
 
-### No question given
+| Concept | Claude /insights | Claude raw | Codex |
+|---|---|---|---|
+| session id | `session_id` | `session_id` | `session_id` |
+| start time | `start_time` | `first_ts` | `timestamp` |
+| project | `project_path` | `cwd` / `project_dir` | `cwd` |
+| duration | `duration_minutes` | `duration_minutes` | — (derive if needed) |
+| user input sample | `first_prompt` | `user_inputs_sample` | `user_inputs_sample` |
+| tool usage | `tool_counts` | `tool_counts` | `event_counts` |
+| output tokens | `output_tokens` | `output_tokens` | `last_token_count` |
 
-Invoked bare, produce the standard overview of the window instead of asking what they want — a user who typed the skill name already told you. Roughly one screen:
+**Source-specific extras** decide which questions each source can answer:
 
-1. Coverage: window dates, session count, how many carry quality assessments (thin-sample rule applies)
-2. Outcome distribution
-3. Top friction types
-4. Volume: active time, output tokens, most-worked projects
-5. Most notable failed or stalled session, one line
-6. Improvement suggestions per "Suggestions ride on evidence" — or one line saying the sample is too thin
+- quality assessments (`outcome`, `friction_counts`, satisfaction — model judgments, not ground truth) → **/insights only**
+- `skill_counts` (model-invoked skills), `command_counts` (user-typed slash commands), `models` (which model served each session) → **Claude raw only**
+- if a question needs a field your source lacks, say so instead of improvising.
 
-Close by inviting a specific follow-up. Don't pad empty sections.
+**Checks before analyzing**: report the extractor's stderr coverage counts; check freshness (newest start time vs today — stale /insights artifacts → say so and suggest re-running `/insights`).
 
-## Improvement mode — the weekly loop
+## Stage 3 — Analyze
 
-Trigger: "weekly review" / "週回顧" / "improve my workflow" / the user asks to turn analysis into lasting changes. Typical rhythm: once a week, e.g. spending leftover quota before a usage reset — but any time works.
+- Write query code to a file and run it — inline `python -c` breaks on Windows backslash paths; set `PYTHONUTF8=1` when output may contain non-ASCII.
+- Print aggregates plus a handful of example rows only. Never load the whole dataset into context — hundreds of KB; you need answers, not raw text. Analysis stops at the dataset files.
+- Weekly review additionally computes: outcome distribution (assessed rows only), friction counts, volume, the hygiene cross (installed inventory × `skill_counts` + `command_counts`), and whether the window spans a model change (`models` field, or dates).
 
-1. Produce the bare overview (above) for the last 7 days.
-2. Derive suggestions (rules below).
-3. Open the **managed rules block** in this tool's user-level config — Claude Code: `~/.claude/CLAUDE.md`; Codex: `~/.codex/AGENTS.md`; Gemini CLI: `~/.gemini/GEMINI.md`; otherwise ask the user where agent instructions live. No block yet → this is a first run; propose one (max 3 rules — rules must earn their place, don't fill the cap on day one).
-4. Re-derive the **entire block** against this week's evidence — every existing rule gets a verdict:
+## Stage 4 — Report (output contract)
+
+**Bare overview** — exactly this skeleton, roughly one screen; skip an empty line entirely rather than padding it:
+
+```
+Window: <dates> · <N> sessions, <M> with quality assessments
+Outcomes: <distribution — or "no assessments in window; run /insights">
+Top frictions: <top 2-3 types with counts>
+Volume: <active time · output tokens · most-worked projects>
+Notable: <one line — the most instructive failed or stalled session>
+Suggestions: <1-3 per the evidence rule below — or "sample too thin to advise">
+```
+
+Close by inviting a specific follow-up. **Query answers**: the computed numbers, then example rows as `date · project-path tail · first-prompt snippet` so the user can recognize the session.
+
+Rules for every report:
+
+- **Coverage first, thin samples flagged**: fewer than ~10 sessions → lead with "thin sample: N sessions"; ask before widening the window, never widen silently. "X% of assessed sessions" ≠ "X% of all sessions".
+- **Every number comes from computation you just ran** — no recall, no extrapolation. Can't compute it → say so.
+- **Separate "the data says" from "I infer"**: precomputed assessments are a model's judgment — citable, fallible; causal readings are inference, label them. Cross-check narratives against mechanical fields ("planning consumed the session" reads differently at `duration_minutes: 2` than 60).
+- **Suggestions ride on evidence**: 1–3 per report, each naming the sessions/counts it rests on and proposing something the user can change. Purely factual questions get no unsolicited advice; "too thin to advise" is a respectable conclusion.
+
+## Stage 5 — Apply (weekly review only)
+
+1. Open the **managed rules block** in this tool's user-level config — Claude Code: `~/.claude/CLAUDE.md`; Codex: `~/.codex/AGENTS.md`; Gemini CLI: `~/.gemini/GEMINI.md`; otherwise ask where agent instructions live. No block yet → first run: propose one with max 3 rules — rules must earn their place.
+2. Re-derive the **entire block** against this week's evidence — every existing rule gets a verdict:
    - **keep** — its target friction would plausibly recur without it; refresh the confirmed date
-   - **rewrite** — the friction recurred *despite* the rule: the rule failed, so change it (sharper wording, different mechanism); never add a second rule for the same problem
+   - **rewrite** — the friction recurred *despite* the rule: the rule failed, change it (sharper wording, different mechanism); never add a second rule for the same problem
    - **merge** — two rules overlap; combine into the stronger one
-   - **retire** — target friction absent for 2 consecutive reviews → "graduated" (internalized or obsolete). If retiring regresses, next review sees the recurrence and brings a rewritten rule back — the loop self-corrects, so retire without fear.
+   - **retire** — target friction absent for 2 consecutive reviews → graduated. If retiring regresses, the next review brings a rewritten rule back — the loop self-corrects, so retire without fear.
 
-   **Model changes devalue old evidence.** A rule confirmed only under a previous model is not auto-kept: when the window spans a model switch (the Claude Code raw extractor's `models` field marks each session; elsewhere go by dates), re-validate its friction against post-switch sessions — friction the new model doesn't exhibit retires early. This is what keeps the block from fossilizing as models change, and why every rule must carry dates and evidence: an unattributed rule can't be re-validated and rots in place.
-5. Before adding any rule, check whether the user's config or skills **already cover it**. If yes and the friction still recurred, the existing rule is what failed — propose rewriting that one (with approval) or flag the conflict; don't duplicate it in the block.
-6. Show the full old→new block diff, every change annotated with why + the evidence behind it. **Write only after the user approves. Never touch anything outside the markers.**
+   **Model changes devalue old evidence**: a rule confirmed only under a previous model is not auto-kept — re-validate against post-switch sessions; friction the new model doesn't exhibit retires early. This keeps the block from fossilizing, and is why every rule carries dates and evidence: an unattributed rule can't be re-validated and rots in place.
+3. Before adding any rule, check whether the user's config or skills **already cover it** — if yes and the friction still recurred, the existing rule is what failed: propose rewriting that one (with approval) or flag the conflict; don't duplicate it in the block.
+4. **Harness fixes beat prose rules**: a friction the harness can enforce mechanically (Claude Code: hooks/env/permissions in `settings.json`; other tools per their docs) gets a config-diff proposal instead of a rules line — a prose rule taxes every session's context and relies on the model remembering; a hook does neither. A mechanism landing retires the prose rule it replaces. Examples: recurring "forgot `PYTHONUTF8`" → set it in env; a repeatedly-fumbled risky action → a PreToolUse guard.
+5. **Skill & config hygiene — bolden the used, prune the unused**: cross the installed-skill inventory (the agent sees its own available-skills list; disk locations per your reference) against invocation counts, both paths summed (`skill_counts` + `/name` in `command_counts` — a skill only ever typed by hand looks dead on tool calls alone). Then, user decides:
+   - **heavily used** → reinforce: remove friction on the hot path — sharper trigger description, permission allowlist (Claude Code ships `fewer-permission-prompts` for this — invoke it, don't reimplement)
+   - **never invoked in the wide window** → candidate to disable/remove; name the count and window. Guards: a skill younger than the window has no evidence either way — skip it; ambient plugins (statuslines, hooks, MCP servers) work without being "called" — never judge them by invocation counts; a situational skill may earn its keep rarely — state what it's for, let the user judge.
+   - **overlapping triggers** → suggest consolidating into the better one.
 
-### Harness fixes beat prose rules
+   Record decisions as one comment line inside the block markers (`<!-- hygiene: kept X, removed Y — 2026-07-18 -->`, latest replaces previous); don't re-raise a declined suggestion for 4 weeks — hygiene that nags gets turned off.
+6. Show the full old→new diff of every proposed change, each annotated with why + evidence. **Write only after the user approves. Never touch anything outside the markers.**
 
-Before a friction becomes a rules-block line, ask: **can the harness enforce this mechanically?** A prose rule taxes every session's context and relies on the model remembering; a hook, env var, or permission entry fires without either. If the tool supports it (Claude Code: hooks/env/permissions in `settings.json`; other tools: check their config docs), propose the mechanical fix instead — exact config diff, user approves, same as rules. An existing prose rule whose job a new mechanism now does → retire it in the same review, crediting the mechanism. Examples: recurring "forgot `PYTHONUTF8`" → set it once in env; a repeatedly-fumbled risky action → a PreToolUse guard; "always do X after Y" → a hook, not a sentence.
-
-### Skill & config hygiene — bolden the used, prune the unused
-
-Part of each weekly review. Cross the **installed-skill inventory** (the running agent sees its own available-skills list; disk locations per the tool's reference) against **actual invocation counts** for the window — for Claude Code, `skill_counts` from the raw extractor; widen to ~28 days (`[days]` arg) before judging, one quiet week proves little. Then work both directions, user decides:
-
-- **Heavily used** → reinforce: propose removing friction on the hot path — an often-typed skill with a clumsy trigger gets a sharper description; a hot tool that keeps hitting permission prompts gets an allowlist proposal (Claude Code ships `fewer-permission-prompts` for exactly this — invoke it, don't reimplement).
-- **Never invoked in the wide window** → candidate to disable/remove. Name the count and window. Low frequency alone is not waste — a situational skill (incident tooling, rare formats) earns its keep when needed; state what it's for and let the user judge.
-- **Overlapping triggers** — two skills claiming the same job → suggest consolidating into the better one.
-
-Three verdict guards (each learned from a real false positive):
-
-- **Count both invocation paths** — model-invoked and user-typed (Claude Code: `skill_counts` + `/name` in `command_counts`). A skill the user only ever types by hand looks dead on tool-call counts alone.
-- **Installation age gates the verdict** — a skill younger than the window has no evidence either way; skip it.
-- **Ambient plugins can't be judged by invocation counts** — statuslines, hooks, MCP servers work without ever being "called" as a skill; name the mechanism instead of flagging them.
-
-Record each decision as one comment line inside the block markers (`<!-- hygiene: kept X, removed Y — 2026-07-18 -->`, latest line replaces the previous) and don't re-raise a declined suggestion for 4 weeks — hygiene that nags gets turned off.
-
-## Managed rules block
+### Managed rules block format
 
 ```
 <!-- session-analytics:rules START (weekly-reviewed; max 10; edits outside markers are never touched) -->
@@ -88,23 +115,10 @@ Record each decision as one comment line inside the block markers (`<!-- hygiene
 <!-- session-analytics:rules END -->
 ```
 
-- **Hard cap 10 rules.** The block is loaded into every future session — each line taxes every session's context, so terseness is the feature. At the cap, adding requires a merge or retirement in the same diff.
-- One line per rule, phrased as a behavior change, with since/confirmed dates and its evidence in parentheses.
-- Rules the skill didn't write (hand-added inside the block) are preserved verbatim unless the user approves changing them.
+- **Hard cap 10 rules** — the block loads into every future session; each line taxes every session's context, so terseness is the feature. At the cap, adding requires a merge or retirement in the same diff.
+- One line per rule, phrased as a behavior change, with since/confirmed dates and evidence in parentheses.
+- Rules the skill didn't write (hand-added inside the markers) are preserved verbatim unless the user approves changing them.
 
-## Reporting rules
+## Cost & privacy
 
-- **Default window: last 7 days**, unless the question names another range. State the window used. Fewer than ~10 sessions → lead with "thin sample: N sessions", deliver what the data supports, ask before widening. Never widen silently — a "weekly report" that quietly covers a month misleads.
-- **State coverage first**: sessions covered, and how many carry quality assessments. "X% of assessed sessions failed" ≠ "X% of all sessions failed".
-- **Every number comes from computation you just ran** — no recall, no extrapolation. Can't compute it → say so.
-- **Separate "the data says" from "I infer"**. Precomputed assessments are themselves a model's judgment: citable, fallible. Causal readings are inference; label them.
-- Cross-check narratives against mechanical fields — "planning consumed the whole session" reads differently at `duration_minutes: 2` (truncated) than 60 (genuine stall).
-- **Suggestions ride on evidence**: in the bare overview and for diagnostic questions, close with 1–3 improvement suggestions; each names the sessions/counts it rests on and proposes something the user can change (a prompt habit, a config rule, a workflow step). Purely factual questions get no unsolicited advice. Never emit advice the shown data doesn't support — "too thin to advise" is a respectable conclusion.
-
-## Cost rules
-
-Prefer precomputed artifacts; where only raw logs exist, extract metadata and small samples, never full transcripts. Do not deep-read a single session's full log without the user explicitly opting in after being told it costs real tokens. Analysis stops at `merged.jsonl`.
-
-## Privacy
-
-`merged.jsonl` contains the user's prompts and project paths. Treat outputs as private; don't paste bulk rows into anything that leaves the machine without the user asking.
+Prefer precomputed artifacts; where only raw logs exist, extract metadata and small samples, never full transcripts. Do not deep-read a single session's full log without the user explicitly opting in after being told it costs real tokens. Dataset files contain the user's prompts and project paths — treat outputs as private; don't paste bulk rows into anything that leaves the machine without the user asking.
