@@ -1,6 +1,6 @@
 ---
 name: session-analytics
-description: Weekly self-improvement loop for AI coding agents, plus ad-hoc usage analytics. Each agent analyzes its OWN tool's local session logs over the last 7 days (Claude Code via /insights artifacts, Codex via ~/.codex/sessions, others via their logs), reports success rates, friction patterns, stalled sessions, tool/token usage — and in a weekly review proposes evidence-tied workflow improvements, maintaining a small capped rules block in the tool's config (diff shown, user approves, block self-refactors instead of accumulating). Trigger on "weekly review", "improve my workflow", "分析我的 session／使用紀錄", "which sessions failed", "my success rate", "compare my experiment runs", or bare invocation (= 7-day overview). Reads local data only. Not for regenerating the official /insights report, or deep-reading one full transcript (expensive — see Cost rules).
+description: Weekly self-improvement loop for AI coding agents, plus ad-hoc usage analytics. Each agent analyzes its OWN tool's local session logs over the last 7 days (Claude Code via /insights artifacts, Codex via ~/.codex/sessions, others via their logs), reports success rates, friction patterns, stalled sessions, tool/token usage — and in a weekly review proposes evidence-tied workflow improvements: a small capped rules block in the tool's config (diff shown, user approves, block self-refactors instead of accumulating), mechanical harness fixes (hooks/env/permissions) preferred over prose rules, and skill/config hygiene (installed-but-never-invoked skills flagged for disabling). Trigger on "weekly review", "improve my workflow", "分析我的 session／使用紀錄", "which sessions failed", "my success rate", "compare my experiment runs", "哪些 skill 沒在用／停用沒用的 skill", or bare invocation (= 7-day overview). Reads local data only. Not for regenerating the official /insights report, or deep-reading one full transcript (expensive — see Cost rules).
 ---
 
 # Session analytics & weekly workflow improvement
@@ -55,6 +55,19 @@ Trigger: "weekly review" / "週回顧" / "improve my workflow" / the user asks t
    - **retire** — target friction absent for 2 consecutive reviews → "graduated" (internalized or obsolete). If retiring regresses, next review sees the recurrence and brings a rewritten rule back — the loop self-corrects, so retire without fear.
 5. Before adding any rule, check whether the user's config or skills **already cover it**. If yes and the friction still recurred, the existing rule is what failed — propose rewriting that one (with approval) or flag the conflict; don't duplicate it in the block.
 6. Show the full old→new block diff, every change annotated with why + the evidence behind it. **Write only after the user approves. Never touch anything outside the markers.**
+
+### Harness fixes beat prose rules
+
+Before a friction becomes a rules-block line, ask: **can the harness enforce this mechanically?** A prose rule taxes every session's context and relies on the model remembering; a hook, env var, or permission entry fires without either. If the tool supports it (Claude Code: hooks/env/permissions in `settings.json`; other tools: check their config docs), propose the mechanical fix instead — exact config diff, user approves, same as rules. An existing prose rule whose job a new mechanism now does → retire it in the same review, crediting the mechanism. Examples: recurring "forgot `PYTHONUTF8`" → set it once in env; a repeatedly-fumbled risky action → a PreToolUse guard; "always do X after Y" → a hook, not a sentence.
+
+### Skill & config hygiene
+
+Part of each weekly review. Cross the **installed-skill inventory** (the running agent sees its own available-skills list; disk locations per the tool's reference) against **actual invocation counts** for the window — for Claude Code, `skill_counts` from the raw extractor; widen to ~28 days (`[days]` arg) before judging, one quiet week proves little. Then flag, for the user to decide:
+
+- **Never invoked in the wide window** → candidate to disable/remove. Name the count and window. Low frequency alone is not waste — a situational skill (incident tooling, rare formats) earns its keep when needed; state what it's for and let the user judge.
+- **Overlapping triggers** — two skills claiming the same job → suggest consolidating into the better one.
+
+Record each decision as one comment line inside the block markers (`<!-- hygiene: kept X, removed Y — 2026-07-18 -->`, latest line replaces the previous) and don't re-raise a declined suggestion for 4 weeks — hygiene that nags gets turned off.
 
 ## Managed rules block
 
