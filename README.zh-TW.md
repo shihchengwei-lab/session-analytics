@@ -15,6 +15,27 @@
   - **Skill 衛生，雙向進行**：把已安裝的 skill 對照實際呼叫次數（模型主動呼叫與使用者手打都算）。熱路徑得到去摩擦提案（更利的觸發描述、權限 allowlist）；從沒被呼叫的列為停用候選——並有防誤判保護：新裝的不判、ambient 型 plugin（statusline、hook、MCP）的價值不長在呼叫次數上，不用次數判它們
   - agent 會展示完整 diff，**你核准之後才寫入**；標記範圍外的內容永遠不碰
 
+## 報告長什麼樣
+
+來自一次真實跑次（專案名已通用化）：
+
+```
+Window: 2026-07-11 → 2026-07-18 · thin sample: 5 sessions, 3 with quality assessments
+  (raw logs show 10 sessions in this window — /insights artifacts lag; re-run /insights for full coverage)
+Outcomes (assessed only): 2 fully_achieved · 1 mostly_achieved
+Top frictions: wrong_approach ×4 · buggy_code ×1 · excessive_changes ×1
+Volume: ~100 h open-session span (not active time) · 855k output tokens
+        top projects: game-project, dotfiles, guardrails-lab
+Notable: no failed or stalled session in the assessed set this week
+Suggestions:
+  1. All 4 wrong_approach marks sit in game-project (07-11 + 07-15 — both sessions still landed):
+     the agent gets there after rework. Try opening those sessions with a one-line goal +
+     constraints statement; check next week whether the count drops.
+  2. Thin sample (5 sessions) — widen the window or re-run /insights before reading trends.
+```
+
+（報告本文以 agent 的工作語言輸出；此處保留實際樣貌。重點特徵：樣本太薄會先自首、涵蓋範圍先講、每條建議都綁著它的證據。）
+
 ## 各工具資料來源
 
 | 工具 | 來源 | 成本 |
@@ -50,6 +71,10 @@ git clone https://github.com/shihchengwei-lab/session-analytics ~/.agents/skills
 | Gemini CLI | `~/.gemini/skills/session-analytics/`（也會讀 `~/.agents/skills/`） |
 
 在 Claude Code：`/session-analytics [問題]`。在 Codex CLI：`$session-analytics [問題]`。或直接講白話——「weekly review」「幫我改進工作流程」「分析我的 session」。
+
+## 開發
+
+抽取器的煙霧測試跑在合成 log 上、只用標準函式庫：`python -m pytest tests/`（或 `python -m unittest discover tests`）。
 
 ## 注意事項
 

@@ -15,6 +15,25 @@ Why 7 days: month-long panoramas mix in old, already-corrected behavior; a rolli
   - **Skill hygiene, both directions**: installed skills crossed against actual invocation counts (both model-invoked and user-typed). Hot paths get friction-removal proposals (sharper triggers, permission allowlists); never-invoked ones are flagged for disabling — with guards for newly installed skills and ambient plugins (statuslines, hooks, MCP) whose value isn't invocation-shaped
   - the agent shows a full diff and writes **only after you approve**; nothing outside the markers is ever touched
 
+## What a report looks like
+
+From a real run (project names genericized):
+
+```
+Window: 2026-07-11 → 2026-07-18 · thin sample: 5 sessions, 3 with quality assessments
+  (raw logs show 10 sessions in this window — /insights artifacts lag; re-run /insights for full coverage)
+Outcomes (assessed only): 2 fully_achieved · 1 mostly_achieved
+Top frictions: wrong_approach ×4 · buggy_code ×1 · excessive_changes ×1
+Volume: ~100 h open-session span (not active time) · 855k output tokens
+        top projects: game-project, dotfiles, guardrails-lab
+Notable: no failed or stalled session in the assessed set this week
+Suggestions:
+  1. All 4 wrong_approach marks sit in game-project (07-11 + 07-15 — both sessions still landed):
+     the agent gets there after rework. Try opening those sessions with a one-line goal +
+     constraints statement; check next week whether the count drops.
+  2. Thin sample (5 sessions) — widen the window or re-run /insights before reading trends.
+```
+
 ## Per-tool data sources
 
 | Tool | Source | Cost |
@@ -50,6 +69,10 @@ Or copy this folder manually. The SKILL.md format is an open standard (Claude Co
 | Gemini CLI | `~/.gemini/skills/session-analytics/` (also reads `~/.agents/skills/`) |
 
 In Claude Code: `/session-analytics [question]`. In Codex CLI: `$session-analytics [question]`. Or plain language — "weekly review", "improve my workflow".
+
+## Development
+
+Extractor smoke tests run on synthetic logs, stdlib-only: `python -m pytest tests/` (or `python -m unittest discover tests`).
 
 ## Caveats
 
