@@ -14,7 +14,7 @@ Observed structure (2026-07, undocumented internals — if files don't match, sa
 python <this skill's directory>/scripts/extract_codex.py <tmpdir>/merged.jsonl [days]
 ```
 
-Windows by file mtime (default 7 days). Per session it emits one JSON line: session_meta fields, event-type counts (tool calls, user inputs, agent messages), last `token_count` payload, and the first few user inputs truncated — enough for coverage, volume, per-project grouping, and theme searches. Coverage counts go to stderr.
+Windows by file mtime (default 7 days). Per session it emits one JSON line: session_meta fields, event-type counts (tool calls, user inputs, agent messages), last `token_count` payload, and the first few user inputs truncated — enough for coverage, volume, per-project grouping, and theme searches. Coverage counts go to stderr; if no file yields a `session_meta`, a stderr warning flags a likely format change — mention it alongside any results.
 
 The input sample prefers human-looking inputs: tag-shaped framework preambles (`<permissions instructions>` etc.) are skipped unless nothing else exists. Other injected boilerplate (e.g. a `## Memory` preamble) still slips through — every framework injects differently, and chasing them all in the extractor is a losing game. When judging user intent from samples, skim past anything that reads as boilerplate; it is not the user speaking. `user_input_total` counts everything, so treat it as an upper bound on real user messages.
 
