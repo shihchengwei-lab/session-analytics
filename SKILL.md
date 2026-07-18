@@ -8,7 +8,7 @@ description: Weekly self-improvement loop for AI coding agents, plus ad-hoc usag
 Two jobs, one skill:
 
 1. **Query mode** — answer the user's analytical questions about their recent sessions with this tool.
-2. **Improvement mode (weekly review)** — analyze the last 7 days, propose improvements tied to evidence, and maintain a small managed rules block in this tool's config — so the collaboration actually changes week over week instead of repeating the same frictions.
+2. **Improvement mode (weekly review)** — analyze the last 7 days and propose evidence-tied changes on three fronts: a small managed rules block in this tool's config, mechanical harness fixes where the tool supports them, and skill/config hygiene — so the collaboration actually changes week over week instead of repeating the same frictions.
 
 The window is a rolling **7 days** by default. Why 7: older sessions mix in behavior that has already been corrected, which pollutes the signal; a week is recent enough to act on. The user can name any other range per question.
 
