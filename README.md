@@ -48,6 +48,16 @@ Suggestions:
 - Python 3 available to the agent
 - Claude Code: outcome/friction assessments need `/insights` run at least once; everything mechanical works with zero setup. Codex: existing session logs
 
+## Non-goals
+
+The bundled data layer is a deliberately minimal, zero-dependency fallback — not a product. This skill will not grow: new agent parsers, a session database or search index, a dashboard/UI, or token-cost accounting. Mature local tools already do those well (below); this skill's actual job is the decision layer — turning session evidence into a small number of bounded, reversible, user-approved harness changes.
+
+## Prior art & interoperability
+
+- [AgentsView](https://github.com/kenn-io/agentsview) — local-first session search/analytics across 20+ agents (SQLite, skill-usage trends, session archetypes). If it already indexes your sessions, prefer it as the mechanical data source: build the stage-2 dataset from its stats output per `references/generic.md` (field mapping untested — state coverage honestly).
+- [ccusage](https://github.com/ccusage/ccusage) — token/usage reports across a dozen agent CLIs; same story for volume numbers.
+- Retrospective-style skills ([glebis/claude-skills](https://github.com/glebis/claude-skills), [session-retrospective](https://github.com/accidentalrebel/claude-skill-session-retrospective), [reflect](https://github.com/hansvangent/reflect-skill-claude)) — per-session or per-day review loops that update skills or `CLAUDE.md`. This skill differs in window (rolling week), evidence base (mechanical + assessed outcomes), and in maintaining a capped, self-refactoring rules block behind a mechanical write guard.
+
 ## Status
 
 Early release. The analysis paths are tested against real data (Claude Code artifacts and raw logs; Codex logs at the data layer), and the skill-hygiene flow has been dry-run against 28 days of real sessions — its verdict guards each come from an actual false positive caught in that run. The weekly loop's multi-week behavior — rules being rewritten, merged, and retired across consecutive reviews — is specified but has not yet been exercised in the field, and the managed-block write path always requires your approval. Treat it as a v0 you watch, not an autopilot.

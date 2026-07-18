@@ -50,6 +50,16 @@ Suggestions:
 - agent 執行環境要有 Python 3
 - Claude Code：成敗／摩擦評估需要至少跑過一次 `/insights`；純機械資料零設定即可用。Codex：要有既存的 session 紀錄
 
+## 不做的事（Non-goals）
+
+內附的資料層是刻意做到最小的零依賴備援，不是產品。這個 skill 不會再長出：新的 agent parser、session 資料庫或搜尋索引、dashboard／UI、token 成本試算。成熟的本地工具已經把這些做得很好（見下）；這個 skill 真正的工作是決策層——把 session 證據轉成少量、有界、可撤銷、經你核准的 harness 改動。
+
+## 先行者與互通（Prior art & interoperability）
+
+- [AgentsView](https://github.com/kenn-io/agentsview) —— 本地優先的 session 搜尋／分析，支援 20+ 種 agent（SQLite、skill 使用趨勢、session 型態分類）。如果它已經在索引你的 session，機械資料建議直接以它為源：照 `references/generic.md` 的程序從它的統計輸出建立資料集（欄位對映未實測——涵蓋範圍照實說）。
+- [ccusage](https://github.com/ccusage/ccusage) —— 橫跨十多種 agent CLI 的 token／用量報表；用量數字同理。
+- Retrospective 類 skill（[glebis/claude-skills](https://github.com/glebis/claude-skills)、[session-retrospective](https://github.com/accidentalrebel/claude-skill-session-retrospective)、[reflect](https://github.com/hansvangent/reflect-skill-claude)）—— 單場或單日的回顧迴圈，更新 skill 或 `CLAUDE.md`。本 skill 的差異在：滾動一週的窗口、機械＋品質評估並用的證據基礎、以及由機械防護把關的有上限自我重構規則區塊。
+
 ## 現況
 
 早期版本。分析路徑已用真實資料測過（Claude Code 的產物與原始紀錄；Codex 紀錄到資料層），skill 衛生流程也對 28 天的真實 session 做過 dry-run——它的防誤判規則每一條都來自那次實跑抓到的誤報。週迴圈的跨週行為——規則在連續回顧中被改寫、合併、退役——已寫成規格但還沒在實戰中跑過，且規則區塊的寫入永遠需要你核准。請把它當成一個你會盯著看的 v0，不是自動駕駛。
