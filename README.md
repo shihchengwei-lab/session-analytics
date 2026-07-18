@@ -11,9 +11,9 @@ Why 7 days: month-long panoramas mix in old, already-corrected behavior; a rolli
 - **Query**: "which sessions failed this week?", "my success rate", "compare my experiment runs" — or invoke bare for a one-screen weekly overview ending in grounded suggestions.
 - **Weekly review**: the overview, plus evidence-tied changes on three fronts:
   - **Rules block** in the tool's config (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`): hard cap 10 one-line rules, each carrying its evidence and dates; every week the whole block is re-derived — keep / rewrite (friction recurred despite the rule) / merge (overlap) / retire (2 clean weeks = graduated) — so it refactors instead of accumulating. A model switch devalues old evidence: rules confirmed only under the previous model are re-validated, not auto-kept
-  - **Harness fixes beat prose rules**: friction a hook, env var, or permission entry can enforce mechanically gets a config-diff proposal instead of another rules line; a mechanism landing retires the prose rule it replaces
+  - **Harness fixes beat prose rules**: friction a hook, env var, or permission entry can enforce mechanically gets a config-diff proposal instead of another rules line; a mechanism landing retires the prose rule it replaces. Proposals to *build* something new must climb the wheel ladder first: adopt → configure → extract the needed piece → copy the design smaller → build from scratch only with a stated reason
   - **Skill hygiene, both directions**: installed skills crossed against actual invocation counts (both model-invoked and user-typed). Hot paths get friction-removal proposals (sharper triggers, permission allowlists); never-invoked ones are flagged for disabling — with guards for newly installed skills and ambient plugins (statuslines, hooks, MCP) whose value isn't invocation-shaped
-  - the agent shows a full diff and writes **only after you approve**; nothing outside the markers is ever touched
+  - every proposed edit passes a mechanical validator (marker boundary byte-exact, rule caps) before the agent shows you the full diff — and it writes **only after you approve**; nothing outside the markers is ever touched
 
 ## What a report looks like
 
@@ -33,6 +33,8 @@ Suggestions:
      constraints statement; check next week whether the count drops.
   2. Thin sample (5 sessions) — widen the window or re-run /insights before reading trends.
 ```
+
+(Reports are written in whatever language you work in with your agent; this one is kept as produced. The features to notice: thin samples confess themselves, coverage comes first, and every suggestion carries its evidence.)
 
 ## Per-tool data sources
 
@@ -82,11 +84,11 @@ In Claude Code: `/session-analytics [question]`. In Codex CLI: `$session-analyti
 
 ## Development
 
-Extractor smoke tests run on synthetic logs, stdlib-only: `python -m pytest tests/` (or `python -m unittest discover tests`).
+Extractor and validator tests run on synthetic logs and configs, stdlib-only: `python -m pytest tests/` (or `python -m unittest discover tests`).
 
 ## Caveats
 
 - Log formats are undocumented tool internals (schemas as observed 2026-07); tool updates may break extraction — the skill is instructed to say so rather than force stale schemas.
 - Qualitative fields (outcomes, friction) are model judgments, not ground truth; where logs record none (Codex), judgments come from sampled evidence and are labeled as inference.
 - Coverage is partial by design; every report states what it covers.
-- Merged data contains your prompts and project paths — treat outputs as private.
+- Dataset files contain your prompts and project paths — treat outputs as private.
