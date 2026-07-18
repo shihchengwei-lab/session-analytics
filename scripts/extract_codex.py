@@ -83,6 +83,14 @@ def main():
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
 
     print(f"sessions: {len(rows)}  window: last {days:g} days (by mtime)", file=sys.stderr)
+    if not any(r.get("session_id") for r in rows):
+        # Rows are still usable (event counts), but a session_meta drought
+        # across every file suggests the log format changed - say so.
+        print(
+            "warning: no session_meta found in any file - the Codex log format "
+            "may have changed; treat identity fields as missing.",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":

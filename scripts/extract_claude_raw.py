@@ -130,6 +130,15 @@ def main():
             skipped += 1
         else:
             rows.append(r)
+    if not rows:
+        # Files exist but none contained recognizable human activity - the
+        # signature of a log-format change. Fail loudly; an empty dataset
+        # downstream reads as "no sessions this week", which misleads.
+        sys.exit(
+            f"All {skipped} session files in the window were skipped (no recognizable "
+            "human activity). If you expected sessions here, the log format may have "
+            "changed - report that instead of analyzing an empty dataset."
+        )
     rows.sort(key=lambda r: r.get("first_ts") or "")
     with open(sys.argv[1], "w", encoding="utf-8") as fh:
         for r in rows:
