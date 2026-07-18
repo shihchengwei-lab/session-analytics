@@ -7,8 +7,9 @@ Edit mode:    python validate_rules_block.py <old_file> <new_file>
 Errors (exit 1):
 - marker pair missing, duplicated, or out of order
 - more than 10 rule lines between the markers
-- edit mode: any line outside the marker region changed (first-run block
-  insertion into an unchanged file is allowed)
+- edit mode: any line outside the marker region changed, byte-exact
+  (first-run block insertion into an unchanged file is allowed, capped
+  at 3 rules per the spec)
 
 Warnings (exit 0): rule lines not matching the documented format - the spec
 preserves hand-added rules verbatim, so format drift must not hard-fail.

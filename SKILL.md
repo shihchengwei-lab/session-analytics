@@ -107,7 +107,7 @@ Rules for every report:
    - **overlapping triggers** → suggest consolidating into the better one.
 
    Record decisions as one comment line inside the block markers (`<!-- hygiene: kept X, removed Y — 2026-07-18 -->`, latest replaces previous); don't re-raise a declined suggestion for 4 weeks — hygiene that nags gets turned off.
-6. Write the proposed config to a temp file and run `python <this skill's directory>/scripts/validate_rules_block.py <current_file> <proposed_file>` — it mechanically enforces the marker boundary and the 10-rule cap (the block's own "harness fix beats prose rule"). A failure means fix the proposal, not show it. Then show the full old→new diff, each change annotated with why + evidence. **Write only after the user approves. Never touch anything outside the markers.**
+6. Write the proposed config to a temp file and run `python <this skill's directory>/scripts/validate_rules_block.py <current_file> <proposed_file>` — it mechanically enforces the marker boundary and the rule caps (10, or 3 on a first run) — the block's own "harness fix beats prose rule". A failure means fix the proposal, not show it. Then show the full old→new diff, each change annotated with why + evidence. **Write only after the user approves. Never touch anything outside the markers.**
 
 ### Managed rules block format
 
