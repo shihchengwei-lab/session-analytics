@@ -1,9 +1,11 @@
 ---
 name: session-analytics
-description: Weekly self-improvement loop for AI coding agents, plus ad-hoc usage analytics. Each agent analyzes its OWN tool's local session logs over the last 7 days (Claude Code via /insights artifacts, Codex via ~/.codex/sessions, others via their logs), reports success rates, friction patterns, stalled sessions, tool/token usage — and in a weekly review proposes evidence-tied workflow improvements: a small capped rules block in the tool's config (diff shown, user approves, block self-refactors instead of accumulating), mechanical harness fixes (hooks/env/permissions) preferred over prose rules, and skill/config hygiene (installed-but-never-invoked skills flagged for disabling). Trigger on "weekly review", "improve my workflow", "分析我的 session／使用紀錄", "which sessions failed", "my success rate", "compare my experiment runs", "哪些 skill 沒在用／停用沒用的 skill", or bare invocation (= 7-day overview). Reads local data only. Not for regenerating the official /insights report, or deep-reading one full transcript (expensive — see Cost rules).
+description: Weekly self-improvement loop for AI coding agents, plus ad-hoc usage analytics. Each agent analyzes its OWN tool's local session logs over the last 7 days (Claude Code via /insights artifacts, Codex via ~/.codex/sessions, others via their logs), reports success rates, friction patterns, stalled sessions, tool/token usage — and in a weekly review proposes evidence-tied workflow improvements: a small capped rules block in the tool's config (diff shown, user approves, block self-refactors instead of accumulating), mechanical harness fixes (hooks/env/permissions) preferred over prose rules, and skill/config hygiene both directions (hot paths reinforced, installed-but-never-invoked skills flagged for disabling; rule evidence re-validated across model changes). Trigger on "weekly review", "improve my workflow", "分析我的 session／使用紀錄", "which sessions failed", "my success rate", "compare my experiment runs", "哪些 skill 沒在用／停用沒用的 skill", or bare invocation (= 7-day overview). Reads local data only. Not for regenerating the official /insights report, or deep-reading one full transcript (expensive — see Cost rules).
 ---
 
 # Session analytics & weekly workflow improvement
+
+**Positioning: a self-optimizing harness skill.** Read the last 7 days of real usage, then work both directions: paths the user actually uses get reinforced (friction removed, access smoothed), paths they don't get pruned (flagged for retirement) — and the skill's own past advice is re-validated the same way, so the setup keeps improving across model changes instead of accumulating stale rules.
 
 Two jobs, one skill:
 
@@ -53,6 +55,8 @@ Trigger: "weekly review" / "週回顧" / "improve my workflow" / the user asks t
    - **rewrite** — the friction recurred *despite* the rule: the rule failed, so change it (sharper wording, different mechanism); never add a second rule for the same problem
    - **merge** — two rules overlap; combine into the stronger one
    - **retire** — target friction absent for 2 consecutive reviews → "graduated" (internalized or obsolete). If retiring regresses, next review sees the recurrence and brings a rewritten rule back — the loop self-corrects, so retire without fear.
+
+   **Model changes devalue old evidence.** A rule confirmed only under a previous model is not auto-kept: when the window spans a model switch (the Claude Code raw extractor's `models` field marks each session; elsewhere go by dates), re-validate its friction against post-switch sessions — friction the new model doesn't exhibit retires early. This is what keeps the block from fossilizing as models change, and why every rule must carry dates and evidence: an unattributed rule can't be re-validated and rots in place.
 5. Before adding any rule, check whether the user's config or skills **already cover it**. If yes and the friction still recurred, the existing rule is what failed — propose rewriting that one (with approval) or flag the conflict; don't duplicate it in the block.
 6. Show the full old→new block diff, every change annotated with why + the evidence behind it. **Write only after the user approves. Never touch anything outside the markers.**
 
@@ -60,10 +64,11 @@ Trigger: "weekly review" / "週回顧" / "improve my workflow" / the user asks t
 
 Before a friction becomes a rules-block line, ask: **can the harness enforce this mechanically?** A prose rule taxes every session's context and relies on the model remembering; a hook, env var, or permission entry fires without either. If the tool supports it (Claude Code: hooks/env/permissions in `settings.json`; other tools: check their config docs), propose the mechanical fix instead — exact config diff, user approves, same as rules. An existing prose rule whose job a new mechanism now does → retire it in the same review, crediting the mechanism. Examples: recurring "forgot `PYTHONUTF8`" → set it once in env; a repeatedly-fumbled risky action → a PreToolUse guard; "always do X after Y" → a hook, not a sentence.
 
-### Skill & config hygiene
+### Skill & config hygiene — bolden the used, prune the unused
 
-Part of each weekly review. Cross the **installed-skill inventory** (the running agent sees its own available-skills list; disk locations per the tool's reference) against **actual invocation counts** for the window — for Claude Code, `skill_counts` from the raw extractor; widen to ~28 days (`[days]` arg) before judging, one quiet week proves little. Then flag, for the user to decide:
+Part of each weekly review. Cross the **installed-skill inventory** (the running agent sees its own available-skills list; disk locations per the tool's reference) against **actual invocation counts** for the window — for Claude Code, `skill_counts` from the raw extractor; widen to ~28 days (`[days]` arg) before judging, one quiet week proves little. Then work both directions, user decides:
 
+- **Heavily used** → reinforce: propose removing friction on the hot path — an often-typed skill with a clumsy trigger gets a sharper description; a hot tool that keeps hitting permission prompts gets an allowlist proposal (Claude Code ships `fewer-permission-prompts` for exactly this — invoke it, don't reimplement).
 - **Never invoked in the wide window** → candidate to disable/remove. Name the count and window. Low frequency alone is not waste — a situational skill (incident tooling, rare formats) earns its keep when needed; state what it's for and let the user judge.
 - **Overlapping triggers** — two skills claiming the same job → suggest consolidating into the better one.
 

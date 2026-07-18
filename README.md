@@ -1,6 +1,6 @@
 # session-analytics
 
-An [Agent Skill](https://agentskills.io) for continuously improving how you work with AI coding agents. Each agent analyzes **its own tool's** local session logs over the last 7 days, answers your questions about them, and — in a weekly review — proposes evidence-tied workflow improvements, maintained as a small self-refactoring rules block in that tool's config. No data leaves your machine.
+An [Agent Skill](https://agentskills.io) for continuously improving how you work with AI coding agents — a **self-optimizing harness skill**: each agent analyzes **its own tool's** local session logs over the last 7 days, reinforces the paths you actually use, prunes the ones you don't, and re-validates its own past advice across model changes — so your setup keeps improving without accumulating. No data leaves your machine.
 
 Why 7 days: month-long panoramas mix in old, already-corrected behavior; a rolling week keeps the signal about who you are *now*. Run it any time — a natural rhythm is spending leftover quota before your weekly usage reset.
 
@@ -8,9 +8,9 @@ Why 7 days: month-long panoramas mix in old, already-corrected behavior; a rolli
 
 - **Query**: "which sessions failed this week?", "my success rate", "compare my experiment runs" — or invoke bare for a one-screen weekly overview ending in grounded suggestions.
 - **Weekly review**: the overview, plus evidence-tied changes on three fronts:
-  - **Rules block** in the tool's config (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`): hard cap 10 one-line rules, each carrying its evidence and dates; every week the whole block is re-derived — keep / rewrite (friction recurred despite the rule) / merge (overlap) / retire (2 clean weeks = graduated) — so it refactors instead of accumulating
+  - **Rules block** in the tool's config (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`): hard cap 10 one-line rules, each carrying its evidence and dates; every week the whole block is re-derived — keep / rewrite (friction recurred despite the rule) / merge (overlap) / retire (2 clean weeks = graduated) — so it refactors instead of accumulating. A model switch devalues old evidence: rules confirmed only under the previous model are re-validated, not auto-kept
   - **Harness fixes beat prose rules**: friction a hook, env var, or permission entry can enforce mechanically gets a config-diff proposal instead of another rules line; a mechanism landing retires the prose rule it replaces
-  - **Skill hygiene**: installed skills crossed against actual invocation counts (both model-invoked and user-typed); never-invoked ones flagged for disabling — with guards for newly installed skills and ambient plugins (statuslines, hooks, MCP) whose value isn't invocation-shaped
+  - **Skill hygiene, both directions**: installed skills crossed against actual invocation counts (both model-invoked and user-typed). Hot paths get friction-removal proposals (sharper triggers, permission allowlists); never-invoked ones are flagged for disabling — with guards for newly installed skills and ambient plugins (statuslines, hooks, MCP) whose value isn't invocation-shaped
   - the agent shows a full diff and writes **only after you approve**; nothing outside the markers is ever touched
 
 ## Per-tool data sources
