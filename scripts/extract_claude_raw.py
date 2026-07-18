@@ -38,7 +38,9 @@ def extract(path):
     inputs = []
     first_ts = last_ts = None
     output_tokens = 0
+    sidechain_output_tokens = 0
     seen_msg_ids = set()
+    seen_sidechain_ids = set()
     models = set()
     with open(path, encoding="utf-8", errors="replace") as fh:
         for line in fh:
@@ -48,7 +50,15 @@ def extract(path):
                 tool_counts["__unparsed_lines__"] += 1
                 continue
             if obj.get("isSidechain"):
-                continue  # subagent traffic; counting it would inflate the user's numbers
+                # Subagent traffic stays out of conversation counts, but its
+                # tokens are real spend - track them in their own field so
+                # agent-heavy sessions aren't undercounted.
+                m = (obj.get("message") or {}) if obj.get("type") == "assistant" else {}
+                mid = m.get("id")
+                if mid and mid not in seen_sidechain_ids:
+                    seen_sidechain_ids.add(mid)
+                    sidechain_output_tokens += (m.get("usage") or {}).get("output_tokens") or 0
+                continue
             t = obj.get("type")
             ts = obj.get("timestamp")
             if ts and t in ("user", "assistant"):
@@ -86,6 +96,25 @@ def extract(path):
                             skill_counts[inp["skill"]] += 1
                         elif name == "Agent" and inp.get("subagent_type"):
                             agent_types[inp["subagent_type"]] += 1
+    # Newer format stores subagent transcripts as separate files under
+    # <session-id>/subagents/ instead of inline isSidechain lines (both
+    # handled; same spend either way).
+    subdir = path.parent / path.stem / "subagents"
+    if subdir.is_dir():
+        for sub in subdir.glob("*.jsonl"):
+            with open(sub, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    try:
+                        obj = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if obj.get("type") == "assistant":
+                        m = obj.get("message") or {}
+                        mid = m.get("id")
+                        if mid and mid not in seen_sidechain_ids:
+                            seen_sidechain_ids.add(mid)
+                            sidechain_output_tokens += (m.get("usage") or {}).get("output_tokens") or 0
+
     if not inputs and not command_counts:
         return None  # warmup/internal session (title gen etc.), not a user session
     minutes = None
@@ -102,7 +131,8 @@ def extract(path):
     row.update({
         "first_ts": first_ts, "last_ts": last_ts, "duration_minutes": minutes,
         "human_messages": len(inputs), "assistant_turns": len(seen_msg_ids),
-        "output_tokens": output_tokens, "models": sorted(models),
+        "output_tokens": output_tokens, "sidechain_output_tokens": sidechain_output_tokens,
+        "models": sorted(models),
         "tool_counts": dict(tool_counts), "skill_counts": dict(skill_counts),
         "agent_types": dict(agent_types), "command_counts": dict(command_counts),
         "user_inputs_sample": [s[:TRUNC] for s in (human or inputs)[:MAX_INPUTS]],

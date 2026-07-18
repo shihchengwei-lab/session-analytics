@@ -54,7 +54,7 @@ Run the extractor(s) named in your reference into your temp directory. Re-run on
 **Source-specific extras** decide which questions each source can answer:
 
 - quality assessments (`outcome`, `friction_counts`, satisfaction — model judgments, not ground truth) → **/insights only**
-- `skill_counts` (model-invoked skills), `command_counts` (user-typed slash commands), `models` (which model served each session) → **Claude raw only**
+- `skill_counts` (model-invoked skills), `command_counts` (user-typed slash commands), `models` (which model served each session), `sidechain_output_tokens` (subagent spend — `output_tokens` alone is main-conversation only and undercounts agent-heavy sessions) → **Claude raw only**
 - if a question needs a field your source lacks, say so instead of improvising.
 
 **Checks before analyzing**: report the extractor's stderr coverage counts; check freshness (newest start time vs today — stale /insights artifacts → say so and suggest re-running `/insights`).
@@ -73,10 +73,12 @@ Run the extractor(s) named in your reference into your temp directory. Re-run on
 Window: <dates> · <N> sessions, <M> with quality assessments
 Outcomes: <distribution — or "no assessments in window; run /insights">
 Top frictions: <top 2-3 types with counts>
-Volume: <active time · output tokens · most-worked projects>
+Volume: <open-session span (NOT active time — sessions idle open) · output tokens · most-worked projects>
 Notable: <one line — the most instructive failed or stalled session>
 Suggestions: <1-3 per the evidence rule below — or "sample too thin to advise">
 ```
+
+Every template line is conditional on its data existing (stage 2 extras): no quality assessments → the Outcomes/frictions lines say so instead of guessing; no duration → drop the span figure. Degrade by omission-with-a-note, never by filling in.
 
 Close by inviting a specific follow-up. **Query answers**: the computed numbers, then example rows as `date · project-path tail · first-prompt snippet` so the user can recognize the session.
 
@@ -105,7 +107,7 @@ Rules for every report:
    - **overlapping triggers** → suggest consolidating into the better one.
 
    Record decisions as one comment line inside the block markers (`<!-- hygiene: kept X, removed Y — 2026-07-18 -->`, latest replaces previous); don't re-raise a declined suggestion for 4 weeks — hygiene that nags gets turned off.
-6. Show the full old→new diff of every proposed change, each annotated with why + evidence. **Write only after the user approves. Never touch anything outside the markers.**
+6. Write the proposed config to a temp file and run `python <this skill's directory>/scripts/validate_rules_block.py <current_file> <proposed_file>` — it mechanically enforces the marker boundary and the 10-rule cap (the block's own "harness fix beats prose rule"). A failure means fix the proposal, not show it. Then show the full old→new diff, each change annotated with why + evidence. **Write only after the user approves. Never touch anything outside the markers.**
 
 ### Managed rules block format
 
