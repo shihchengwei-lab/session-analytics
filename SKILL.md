@@ -67,6 +67,12 @@ Part of each weekly review. Cross the **installed-skill inventory** (the running
 - **Never invoked in the wide window** → candidate to disable/remove. Name the count and window. Low frequency alone is not waste — a situational skill (incident tooling, rare formats) earns its keep when needed; state what it's for and let the user judge.
 - **Overlapping triggers** — two skills claiming the same job → suggest consolidating into the better one.
 
+Three verdict guards (each learned from a real false positive):
+
+- **Count both invocation paths** — model-invoked and user-typed (Claude Code: `skill_counts` + `/name` in `command_counts`). A skill the user only ever types by hand looks dead on tool-call counts alone.
+- **Installation age gates the verdict** — a skill younger than the window has no evidence either way; skip it.
+- **Ambient plugins can't be judged by invocation counts** — statuslines, hooks, MCP servers work without ever being "called" as a skill; name the mechanism instead of flagging them.
+
 Record each decision as one comment line inside the block markers (`<!-- hygiene: kept X, removed Y — 2026-07-18 -->`, latest line replaces the previous) and don't re-raise a declined suggestion for 4 weeks — hygiene that nags gets turned off.
 
 ## Managed rules block

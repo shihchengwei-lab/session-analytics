@@ -53,11 +53,11 @@ Root: `$CLAUDE_CONFIG_DIR/projects` (default `~/.claude/projects`) — `<munged-
 python <this skill's directory>/scripts/extract_claude_raw.py <tmpdir>/raw.jsonl [days]
 ```
 
-Windows by file mtime (default 7 days). Per session it emits: project, cwd, version, git branch, first/last timestamps, human message count, assistant turns, output tokens (deduped by API message id), `tool_counts`, **`skill_counts` (which skills, by name — /insights collapses these into one "Skill" total)**, `agent_types` (subagent names), and the first few human inputs truncated. Sessions with zero human input (title-gen etc.) are skipped and counted on stderr.
+Windows by file mtime (default 7 days). Per session it emits: project, cwd, version, git branch, first/last timestamps, human message count, assistant turns, output tokens (deduped by API message id), `tool_counts`, **`skill_counts` (which skills, by name — /insights collapses these into one "Skill" total)**, `agent_types` (subagent names), `command_counts` (typed slash commands, incl. user-typed skill invocations), and the first few human inputs truncated. Sessions with zero human activity (title-gen, headless batch runs) are skipped and counted on stderr.
 
 Caveats (observed 2026-07, undocumented internals — if files don't match, say so rather than forcing this schema):
 
-- `human_messages` counts plain typed prompts only; slash-command invocations arrive as wrapped messages and are not counted — treat as a lower bound.
+- `human_messages` counts plain typed prose only; typed slash invocations live in `command_counts`. A skill's true usage = `skill_counts` (model-invoked) + its `/name` entry in `command_counts` (user-typed) — judge hygiene on the sum. Loop/wakeup re-fires inflate the looped command's own count.
 - Subagent (sidechain) traffic is excluded from all counts.
 - No outcome/friction/satisfaction fields exist here. Judgments about session quality from raw rows are your inference from the input samples — quote evidence, label as inference (same rules as the codex reference).
 - `skill_counts` aggregated across the window vs. the installed-skill list (`~/.claude/skills/`, plugin skills, `~/.agents/skills/`) is the evidence base for skill-hygiene suggestions (disable/remove what's never invoked).

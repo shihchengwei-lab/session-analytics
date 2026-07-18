@@ -14,6 +14,7 @@ Coverage stats go to stderr so they never pollute the data stream.
 """
 import json
 import os
+import re
 import sys
 import time
 from collections import Counter
@@ -22,6 +23,10 @@ from pathlib import Path
 PROJECTS = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
 MAX_INPUTS = 5
 TRUNC = 200
+# Typed slash commands (incl. user-typed skill invocations) arrive as wrapped
+# user messages, NOT as Skill tool calls - without counting these, a skill the
+# user always types by hand looks "never invoked".
+COMMAND_RE = re.compile(r"<command-name>(/[\w:.-]+)</command-name>")
 
 
 def extract(path):
@@ -29,6 +34,7 @@ def extract(path):
     tool_counts = Counter()
     skill_counts = Counter()
     agent_types = Counter()
+    command_counts = Counter()
     inputs = []
     first_ts = last_ts = None
     output_tokens = 0
@@ -50,12 +56,17 @@ def extract(path):
                 last_ts = ts
             if t == "user":
                 msg = obj.get("message") or {}
-                # Real human input has origin.kind == "human"; tool_results also
-                # arrive as type=user but without it.
-                if (obj.get("origin") or {}).get("kind") == "human" and isinstance(msg.get("content"), str):
-                    inputs.append(msg["content"])
-                    for k in ("cwd", "version", "gitBranch"):
-                        row.setdefault(k, obj.get(k))
+                content = msg.get("content")
+                if isinstance(content, str):  # tool_results are lists; skip them
+                    cmd = COMMAND_RE.search(content)
+                    if cmd:
+                        command_counts[cmd.group(1)] += 1
+                    # Real human prose has origin.kind == "human".
+                    elif (obj.get("origin") or {}).get("kind") == "human":
+                        inputs.append(content)
+                    if cmd or (obj.get("origin") or {}).get("kind") == "human":
+                        for k in ("cwd", "version", "gitBranch"):
+                            row.setdefault(k, obj.get(k))
             elif t == "assistant":
                 msg = obj.get("message") or {}
                 if msg.get("model"):
@@ -75,7 +86,7 @@ def extract(path):
                             skill_counts[inp["skill"]] += 1
                         elif name == "Agent" and inp.get("subagent_type"):
                             agent_types[inp["subagent_type"]] += 1
-    if not inputs:
+    if not inputs and not command_counts:
         return None  # warmup/internal session (title gen etc.), not a user session
     minutes = None
     if first_ts and last_ts:
@@ -93,7 +104,7 @@ def extract(path):
         "human_messages": len(inputs), "assistant_turns": len(seen_msg_ids),
         "output_tokens": output_tokens, "models": sorted(models),
         "tool_counts": dict(tool_counts), "skill_counts": dict(skill_counts),
-        "agent_types": dict(agent_types),
+        "agent_types": dict(agent_types), "command_counts": dict(command_counts),
         "user_inputs_sample": [s[:TRUNC] for s in (human or inputs)[:MAX_INPUTS]],
     })
     return row
