@@ -16,7 +16,7 @@ The window is a rolling **7 days** by default. Why 7: older sessions mix in beha
 
 Each agent analyzes **its own tool's** logs — Claude Code data stays meaningful to Claude Code sessions, Codex data to Codex. Before touching data, read the reference for the tool you are running in:
 
-- Claude Code → `references/claude-code.md` (precomputed /insights artifacts; cheapest path)
+- Claude Code → `references/claude-code.md` (precomputed /insights artifacts for quality data; raw session logs for freshness + per-skill detail)
 - OpenAI Codex → `references/codex.md` (raw session JSONL; metadata-first, bundled extractor)
 - Any other tool → `references/generic.md`
 

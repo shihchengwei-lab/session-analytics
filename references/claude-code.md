@@ -1,4 +1,13 @@
-# Data source: Claude Code (/insights artifacts)
+# Data source: Claude Code
+
+Two sources, different strengths — pick by question, and say which one a number came from:
+
+| Source | Needs | Has | Lacks |
+|---|---|---|---|
+| `/insights` artifacts (primary for quality questions) | user ran `/insights` recently | outcome/friction/satisfaction assessments (facets) | per-skill names; sessions since last run |
+| Raw session logs (always available) | nothing | per-skill + per-subagent invocation names, always fresh | any quality assessment — outcomes are your inference only |
+
+## /insights artifacts
 
 Root: `$CLAUDE_CONFIG_DIR/usage-data` if that env var is set, else `~/.claude/usage-data`. Produced by the user running `/insights` inside Claude Code — precomputed, so reading them costs no LLM re-analysis.
 
@@ -15,7 +24,7 @@ Root: `$CLAUDE_CONFIG_DIR/usage-data` if that env var is set, else `~/.claude/us
 python <this skill's directory>/scripts/merge_facets.py <tmpdir>/merged.jsonl
 ```
 
-Joins both dirs by `session_id` (`has_facet` marks rows with assessments), prints coverage counts to stderr. If it exits with "No /insights data found", ask the user to run `/insights` in Claude Code, then retry — don't improvise another source.
+Joins both dirs by `session_id` (`has_facet` marks rows with assessments), prints coverage counts to stderr. If it exits with "No /insights data found", fall back to the raw extractor below for mechanical questions; for quality questions (outcomes, friction) suggest running `/insights` — raw logs carry no assessments.
 
 **Freshness**: artifacts only update when the user runs `/insights`. If the newest `start_time` in the data is much older than today, say so and suggest re-running `/insights` before a weekly review.
 
@@ -35,3 +44,20 @@ facets (rows with `has_facet: true`):
 - Text fields `underlying_goal, brief_summary, friction_detail` — keyword search here is the best way to find sessions about a theme
 
 `duration_minutes` is the session's open span, not active typing time.
+
+## Raw session logs (no-setup fallback + skill-level detail)
+
+Root: `$CLAUDE_CONFIG_DIR/projects` (default `~/.claude/projects`) — `<munged-project-path>/<session-id>.jsonl`, one file per session, written live by Claude Code itself. No user action needed, always current.
+
+```
+python <this skill's directory>/scripts/extract_claude_raw.py <tmpdir>/raw.jsonl [days]
+```
+
+Windows by file mtime (default 7 days). Per session it emits: project, cwd, version, git branch, first/last timestamps, human message count, assistant turns, output tokens (deduped by API message id), `tool_counts`, **`skill_counts` (which skills, by name — /insights collapses these into one "Skill" total)**, `agent_types` (subagent names), and the first few human inputs truncated. Sessions with zero human input (title-gen etc.) are skipped and counted on stderr.
+
+Caveats (observed 2026-07, undocumented internals — if files don't match, say so rather than forcing this schema):
+
+- `human_messages` counts plain typed prompts only; slash-command invocations arrive as wrapped messages and are not counted — treat as a lower bound.
+- Subagent (sidechain) traffic is excluded from all counts.
+- No outcome/friction/satisfaction fields exist here. Judgments about session quality from raw rows are your inference from the input samples — quote evidence, label as inference (same rules as the codex reference).
+- `skill_counts` aggregated across the window vs. the installed-skill list (`~/.claude/skills/`, plugin skills, `~/.agents/skills/`) is the evidence base for skill-hygiene suggestions (disable/remove what's never invoked).
