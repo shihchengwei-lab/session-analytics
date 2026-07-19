@@ -84,6 +84,7 @@ Suggestions:
 
 - [AgentsView](https://github.com/kenn-io/agentsview) —— 本地優先的 session 搜尋／分析，支援 20+ 種 agent（SQLite、skill 使用趨勢、session 型態分類）。如果它已經在索引你的 session，機械資料建議直接以它為源：照 `references/generic.md` 的程序從它的統計輸出建立資料集（欄位對映未實測——涵蓋範圍照實說）。
 - [ccusage](https://github.com/ccusage/ccusage) —— 橫跨十多種 agent CLI 的 token／用量報表；用量數字同理。
+- Claude Code 官方的 `/checkup`（`/doctor` 的別名，v2.1.186+）—— 隨叫隨用的設定健檢：安裝診斷、CLAUDE.md 瘦身、找出沒在用的 skill／MCP server／plugin 並對照 context 成本。它看的是設定的當下狀態；「沒在用」的判斷依據官方沒有文件化（2026-07 時點），所以本 skill 的衛生盤點保留自己的呼叫次數證據，把 `/checkup` 當交叉核對、不當替代。
 - Retrospective 類 skill（[glebis/claude-skills](https://github.com/glebis/claude-skills)、[session-retrospective](https://github.com/accidentalrebel/claude-skill-session-retrospective)、[reflect](https://github.com/hansvangent/reflect-skill-claude)）—— 單場或單日的回顧迴圈，更新 skill 或 `CLAUDE.md`。本 skill 的差異在：滾動一週的窗口、機械＋品質評估並用的證據基礎、以及由機械防護把關的有上限自我重構規則區塊。
 
 ## 現況

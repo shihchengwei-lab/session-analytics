@@ -84,6 +84,7 @@ The bundled data layer is a deliberately minimal, zero-dependency fallback — n
 
 - [AgentsView](https://github.com/kenn-io/agentsview) — local-first session search/analytics across 20+ agents (SQLite, skill-usage trends, session archetypes). If it already indexes your sessions, prefer it as the mechanical data source: build the stage-2 dataset from its stats output per `references/generic.md` (field mapping untested — state coverage honestly).
 - [ccusage](https://github.com/ccusage/ccusage) — token/usage reports across a dozen agent CLIs; same story for volume numbers.
+- Claude Code's official `/checkup` (alias of `/doctor`, v2.1.186+) — on-demand setup health audit: install diagnostics, CLAUDE.md trimming, and flagging unused skills/MCP servers/plugins against their context cost. It audits the current state of your setup; how it decides "unused" is undocumented (as of 2026-07), so this skill keeps its own invocation-count evidence for hygiene and treats `/checkup` as a cross-check, not a replacement.
 - Retrospective-style skills ([glebis/claude-skills](https://github.com/glebis/claude-skills), [session-retrospective](https://github.com/accidentalrebel/claude-skill-session-retrospective), [reflect](https://github.com/hansvangent/reflect-skill-claude)) — per-session or per-day review loops that update skills or `CLAUDE.md`. This skill differs in window (rolling week), evidence base (mechanical + assessed outcomes), and in maintaining a capped, self-refactoring rules block behind a mechanical write guard.
 
 ## Status
