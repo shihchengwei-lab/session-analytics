@@ -133,6 +133,8 @@ Other tools have no standard hook system; there the validator still runs inside 
 
 Use your tool's scheduler (e.g. Claude Code desktop's scheduled tasks) to invoke the skill weekly with "weekly review". Instruct the scheduled run to stop at report + proposals — approval happens with you present, never unattended.
 
+A skill cannot wake itself: without a trigger, the loop stalls silently, so pair the schedule with a reminder that doesn't depend on it (a recurring calendar event works). If the loop does stall, the next review — whenever it happens — treats the skill's own idleness as a stalled cadence to re-anchor, not as disuse to retire.
+
 ## Development
 
 Tests run on synthetic logs and configs, stdlib-only: `python -m pytest tests/` (or `python -m unittest discover tests`). Covers the extractors, the validator, and the hook. No CI is set up — run them yourself after changes.

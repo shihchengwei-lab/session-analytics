@@ -57,7 +57,7 @@ Windows by file mtime (default 7 days), and by whole files — a resumed session
 
 Caveats (observed 2026-07, undocumented internals — if files don't match, say so rather than forcing this schema):
 
-- `human_messages` counts plain typed prose only; typed slash invocations live in `command_counts`. A skill's true usage = `skill_counts` (model-invoked) + its `/name` entry in `command_counts` (user-typed) — judge hygiene on the sum. Loop/wakeup re-fires inflate the looped command's own count.
+- `human_messages` counts plain typed prose only; typed slash invocations live in `command_counts`. A skill's true usage = `skill_counts` (model-invoked) + its `/name` entry in `command_counts` (user-typed) — judge hygiene on the sum. A skill with `disable-model-invocation: true` in its frontmatter can only ever appear in `command_counts`; its zero `skill_counts` is structure, not disuse. Loop/wakeup re-fires inflate the looped command's own count.
 - Subagent (sidechain) traffic is excluded from conversation counts (messages, tools, skills); its token spend is tracked separately in `sidechain_output_tokens`. Total observed spend = `output_tokens` + `sidechain_output_tokens`.
 - No outcome/friction/satisfaction fields exist here. Judgments about session quality from raw rows are your inference from the input samples — quote evidence, label as inference (same rules as the codex reference).
 - `skill_counts` aggregated across the window vs. the installed-skill list (`~/.claude/skills/`, plugin skills, `~/.agents/skills/`) is the evidence base for skill-hygiene suggestions (disable/remove what's never invoked).

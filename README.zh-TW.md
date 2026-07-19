@@ -133,6 +133,8 @@ git clone https://github.com/shihchengwei-lab/session-analytics ~/.agents/skills
 
 用工具的排程器（例如 Claude Code desktop 的 scheduled tasks）每週以「weekly review」呼叫本 skill，並指示排程執行只走到報告＋提案為止——核准永遠在你在場時進行，不在無人值守時發生。
 
+skill 沒辦法自己叫醒自己：沒有觸發，迴圈就靜默停擺，所以排程要配一個不依賴它的提醒（固定的行事曆事件就行）。就算迴圈真的斷了，下一次回顧——不管隔多久——會把 skill 自己的閒置當成「節奏斷了、該重新接上」，而不是「沒在用、該退役」。
+
 ## 開發
 
 測試跑在合成紀錄與設定檔上、只用標準函式庫：`python -m pytest tests/`（或 `python -m unittest discover tests`）。涵蓋抽取器、驗證器、hook。沒有設 CI——改完請自己跑。
